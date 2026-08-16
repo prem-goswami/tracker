@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Application Tracker</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#16233b">
+<meta name="description" content="Track job applications, statuses, and follow-ups. Your data stays on your device.">
+<link rel="icon" href="./icons/favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Job Tracker">
+<style>
+  :root{
+    --ink:#16233b; --ink-soft:#5b6b85; --paper:#f6f7f9; --card:#ffffff; --line:#e3e7ee;
+    --accent:#2f6df6;
+    --saved:#8a63d2;   --saved-bg:#f1ebfb;
+    --applied:#2f6df6; --applied-bg:#e8effe;
+    --screen:#0e9aa7;  --screen-bg:#e2f5f7;
+    --interview:#e08a00; --interview-bg:#fdf1dc;
+    --offer:#1d9e55;   --offer-bg:#e2f6ea;
+    --rejected:#c23b4b;--rejected-bg:#fbe8ea;
+    --ghosted:#77808f; --ghosted-bg:#eef0f3;
+    --danger:#c23b4b; --due:#c23b4b; --due-bg:#fbe8ea;
+    --radius:12px; font-size:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--paper);color:var(--ink);min-height:100vh;padding:24px 16px 90px;
+  }
+  .wrap{max-width:1000px;margin:0 auto}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  header h1{font-size:1.5rem;letter-spacing:-0.02em;font-weight:700}
+  header p{color:var(--ink-soft);font-size:.88rem;margin-top:4px}
+  .header-actions{display:flex;gap:6px;flex-wrap:wrap}
+
+  .banner{
+    border-radius:var(--radius);padding:12px 16px;margin:14px 0;font-size:.88rem;display:none;
+    border:1px solid var(--line);background:var(--card);border-left:4px solid var(--interview);
+  }
+  .banner.show{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+  .banner.danger{border-left-color:var(--danger)}
+  .banner .banner-actions{display:flex;gap:6px}
+
+  .stats{display:flex;gap:18px;flex-wrap:wrap;margin:16px 0 4px;font-size:.84rem;color:var(--ink-soft)}
+  .stats b{color:var(--ink);font-weight:700}
+
+  .pipeline{display:flex;gap:8px;overflow-x:auto;margin:14px 0 16px;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .stage{
+    flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;min-width:96px;
+    padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);
+    cursor:pointer;transition:box-shadow .15s,border-color .15s;font:inherit;text-align:left;
+  }
+  .stage:hover{border-color:var(--ink-soft)}
+  .stage:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .stage.active{border-color:var(--ink);box-shadow:0 0 0 1px var(--ink)}
+  .stage .count{font-size:1.35rem;font-weight:700;line-height:1.1}
+  .stage .label{font-size:.72rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-top:2px}
+
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .toolbar input[type="search"]{
+    flex:1 1 220px;padding:10px 14px;border:1px solid var(--line);border-radius:var(--radius);
+    background:var(--card);font:inherit;color:var(--ink);
+  }
+  .toolbar select{padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);font:inherit;color:var(--ink);cursor:pointer}
+  .btn{padding:10px 16px;border:none;border-radius:var(--radius);font:inherit;font-weight:600;cursor:pointer;transition:filter .15s}
+  .btn:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn-ghost{background:transparent;color:var(--ink-soft)}
+  .btn-ghost:hover{color:var(--ink)}
+  .btn-small{padding:7px 12px;font-size:.8rem;background:var(--card);border:1px solid var(--line);color:var(--ink-soft)}
+  .btn-small:hover{color:var(--ink);border-color:var(--ink-soft)}
+
+  .today{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--interview);border-radius:var(--radius);padding:12px 16px;margin-bottom:16px;display:none}
+  .today.show{display:block}
+  .today h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);margin-bottom:6px}
+  .today ul{list-style:none}
+  .today li{font-size:.9rem;padding:3px 0;cursor:pointer}
+  .today li:hover{color:var(--accent)}
+  .today .due-tag{font-weight:700;color:var(--due)}
+
+  .list{display:flex;flex-direction:column;gap:10px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+  .card.highlight{outline:2px solid var(--accent)}
+  .card-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .card h3{font-size:1.02rem;font-weight:700}
+  .card .company{color:var(--ink-soft);font-size:.9rem;margin-top:1px}
+  .card .company a{color:var(--accent);text-decoration:none}
+  .card .company a:hover{text-decoration:underline}
+  .meta{display:flex;gap:14px;flex-wrap:wrap;color:var(--ink-soft);font-size:.82rem;align-items:center}
+  .meta strong{color:var(--ink);font-weight:600}
+  .notes{font-size:.86rem;color:var(--ink);background:var(--paper);border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
+  .card-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .icon-btn{border:none;background:transparent;cursor:pointer;color:var(--ink-soft);font-size:.82rem;padding:6px 8px;border-radius:8px;font-weight:600}
+  .icon-btn:hover{background:var(--paper);color:var(--ink)}
+  .status-select{
+    appearance:none;-webkit-appearance:none;border:none;font:inherit;font-weight:700;font-size:.78rem;
+    padding:6px 26px 6px 12px;border-radius:999px;cursor:pointer;letter-spacing:.02em;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;
+  }
+  .pill{font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:999px;white-space:nowrap}
+  .pill-stale{color:var(--interview);background:var(--interview-bg)}
+  .pill-due{color:var(--due);background:var(--due-bg)}
+  .pill-upcoming{color:var(--screen);background:var(--screen-bg)}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:18px;display:none}
+  .panel.open{display:block}
+  .panel h2{font-size:1.05rem;margin-bottom:12px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid .full{grid-column:1/-1}
+  .field label{display:block;font-size:.78rem;font-weight:600;color:var(--ink-soft);margin-bottom:4px}
+  .field input,.field select,.field textarea{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--ink);background:var(--paper)}
+  .field textarea{resize:vertical;min-height:64px}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--accent);border-color:transparent}
+  .form-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end;align-items:center}
+  .dup-warn{font-size:.8rem;color:var(--interview);margin-right:auto;display:none}
+  .dup-warn.show{display:block}
+
+  .empty{text-align:center;padding:48px 16px;color:var(--ink-soft);border:1.5px dashed var(--line);border-radius:var(--radius)}
+  .empty strong{color:var(--ink)}
+  .status-msg{text-align:center;color:var(--ink-soft);padding:40px 0}
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(8px);
+    background:var(--ink);color:#fff;padding:10px 14px 10px 18px;border-radius:999px;font-size:.85rem;
+    opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:20;display:flex;gap:10px;align-items:center;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  .toast button{background:rgba(255,255,255,.18);color:#fff;border:none;border-radius:999px;padding:4px 12px;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+  .toast button:hover{background:rgba(255,255,255,.3)}
+  #undoBtn{display:none}
+  #undoBtn.show{display:inline-block}
+
+  @media (max-width:560px){ .grid{grid-template-columns:1fr} .card-top{flex-direction:column} }
+  @media (prefers-reduced-motion:reduce){ *{transition:none!important;scroll-behavior:auto!important} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Job Application Tracker</h1>
+      <p id="subtitle">Saved automatically on this device.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-small" id="exportXlsxBtn" title="Download as an Excel workbook">Excel</button>
+      <button class="btn btn-small" id="exportCsvBtn" title="Download as CSV">CSV</button>
+      <button class="btn btn-small" id="exportJsonBtn" title="Download a full backup you can restore later">Backup</button>
+      <button class="btn btn-small" id="importBtn" title="Restore from a backup file">Restore</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+  </header>
+
+  <div class="banner" id="banner">
+    <span id="bannerText"></span>
+    <span class="banner-actions" id="bannerActions"></span>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="pipeline" id="pipeline" role="tablist" aria-label="Filter by status"></div>
+
+  <section class="today" id="todayPanel" aria-label="Needs attention">
+    <h2>Needs attention</h2>
+    <ul id="todayList"></ul>
+  </section>
+
+  <div class="toolbar">
+    <input type="search" id="search" placeholder="Search company, role, location…  ( press / )" aria-label="Search applications">
+    <select id="sort" aria-label="Sort applications">
+      <option value="updated-desc">Recently updated</option>
+      <option value="next-action">Next action date</option>
+      <option value="applied-desc">Newest applied</option>
+      <option value="applied-asc">Oldest applied</option>
+      <option value="company">Company A–Z</option>
+    </select>
+    <button class="btn btn-primary" id="addBtn" title="Shortcut: N">+ Add application</button>
+  </div>
+
+  <section class="panel" id="formPanel" aria-label="Application form">
+    <h2 id="formTitle">Add application</h2>
+    <div class="grid">
+      <div class="field"><label for="fCompany">Company *</label><input id="fCompany" required autocomplete="off"></div>
+      <div class="field"><label for="fRole">Role *</label><input id="fRole" required autocomplete="off"></div>
+      <div class="field"><label for="fDate">Date applied</label><input id="fDate" type="date"></div>
+      <div class="field"><label for="fStatus">Status</label><select id="fStatus"></select></div>
+      <div class="field"><label for="fLocation">Location</label><input id="fLocation" placeholder="Remote, Dallas TX…" autocomplete="off"></div>
+      <div class="field"><label for="fSalary">Salary range</label><input id="fSalary" placeholder="$90k–110k" autocomplete="off"></div>
+      <div class="field"><label for="fNextDate">Next action date</label><input id="fNextDate" type="date"></div>
+      <div class="field"><label for="fNextWhat">Next action</label><input id="fNextWhat" placeholder="Follow up, phone screen, thank-you note…" autocomplete="off"></div>
+      <div class="field"><label for="fContact">Contact</label><input id="fContact" placeholder="Recruiter name / email" autocomplete="off"></div>
+      <div class="field"><label for="fSource">Source</label><input id="fSource" placeholder="LinkedIn, referral, careers page…" autocomplete="off"></div>
+      <div class="field full"><label for="fLink">Job posting link</label><input id="fLink" type="url" placeholder="https://…" autocomplete="off"></div>
+      <div class="field full"><label for="fNotes">Notes</label><textarea id="fNotes" placeholder="Interview prep, feedback, next steps…"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <span class="dup-warn" id="dupWarn"></span>
+      <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn">Save application</button>
+    </div>
+  </section>
+
+  <div id="content"><div class="status-msg">Loading your applications…</div></div>
+</div>
+
+<div class="toast" id="toast" role="status">
+  <span id="toastText"></span>
+  <button id="undoBtn">Undo</button>
+</div>
+
+<script>
+'use strict';
+
+const KEY       = 'job-applications-v1';
+const KEY_BAK   = 'job-applications-v1.backup';
+const KEY_META  = 'job-applications-v1.meta';
+const SCHEMA    = 2;
+
+const STATUSES = [
+  {id:'saved',     label:'To apply',  color:'var(--saved)',     bg:'var(--saved-bg)'},
+  {id:'applied',   label:'Applied',   color:'var(--applied)',   bg:'var(--applied-bg)'},
+  {id:'screening', label:'Screening', color:'var(--screen)',    bg:'var(--screen-bg)'},
+  {id:'interview', label:'Interview', color:'var(--interview)', bg:'var(--interview-bg)'},
+  {id:'offer',     label:'Offer',     color:'var(--offer)',     bg:'var(--offer-bg)'},
+  {id:'rejected',  label:'Rejected',  color:'var(--rejected)',  bg:'var(--rejected-bg)'},
+  {id:'ghosted',   label:'Ghosted',   color:'var(--ghosted)',   bg:'var(--ghosted-bg)'},
+];
+const STATUS_IDS = new Set(STATUSES.map(s => s.id));
+const ACTIVE  = new Set(['applied','screening','interview']);
+const CLOSED  = new Set(['rejected','ghosted']);
+const STALE_DAYS = 10;
+const BACKUP_NAG_DAYS = 14;
+
+let apps = [];
+let filter = 'all';
+let editingId = null;
+let highlightId = null;
+let lastDeleted = null;
+let shown = 60;
+const PAGE = 60;
+let loadFailed = false;   // blocks writes so we never clobber unreadable data
+let storageWorks = true;
+
+const $ = id => document.getElementById(id);
+
+/* ================= storage ================= */
+const store = {
+  isArtifact: !!(window.storage && window.storage.get),
+  async get(key){
+    if(this.isArtifact){
+      try{ const r = await window.storage.get(key); return r ? r.value : null; }
+      catch(e){ return null; }
+    }
+    try{ return window.localStorage.getItem(key); }catch(e){ return null; }
+  },
+  async set(key, value){
+    if(this.isArtifact){
+      try{ return !!(await window.storage.set(key, value)); }catch(e){ return false; }
+    }
+    try{ window.localStorage.setItem(key, value); return true; }catch(e){ return false; }
+  }
+};
+
+async function probeStorage(){
+  const ok = await store.set('__probe__', '1');
+  if(ok) await store.set('__probe__', '');
+  storageWorks = ok;
+  return ok;
+}
+
+/* serialise writes so rapid edits can't interleave */
+let writeChain = Promise.resolve();
+function persist(){
+  if(loadFailed) return writeChain;
+  writeChain = writeChain.then(async () => {
+    const payload = JSON.stringify(apps);
+    const prev = await store.get(KEY);
+    if(prev && prev !== payload) await store.set(KEY_BAK, prev); // rolling one-step-back snapshot
+    const ok = await store.set(KEY, payload);
+    if(!ok){
+      storageWorks = false;
+      showBanner('Changes could not be saved to this browser. Download a Backup now so you don\u2019t lose anything.', 'danger',
+        [{label:'Download backup', fn:exportJson}]);
+    }
+  }).catch(()=>{});
+  return writeChain;
+}
+
+/* ================= normalisation (crash-proofing) ================= */
+function normalise(raw){
+  if(!Array.isArray(raw)) return null;
+  const seen = new Set();
+  const out = [];
+  raw.forEach(r => {
+    if(!r || typeof r !== 'object') return;
+    const company = String(r.company ?? '').trim();
+    const role    = String(r.role ?? '').trim();
+    if(!company && !role) return;
+    let id = String(r.id ?? '').trim();
+    if(!id || seen.has(id)) id = uid();
+    seen.add(id);
+    out.push({
+      id,
+      company: company || '(no company)',
+      role: role || '(no role)',
+      status: STATUS_IDS.has(r.status) ? r.status : 'applied',
+      dateApplied: isoOrEmpty(r.dateApplied),
+      location: String(r.location ?? '').trim(),
+      salary:   String(r.salary ?? '').trim(),
+      nextDate: isoOrEmpty(r.nextDate),
+      nextWhat: String(r.nextWhat ?? '').trim(),
+      contact:  String(r.contact ?? '').trim(),
+      source:   String(r.source ?? '').trim(),
+      link:     safeUrl(r.link),
+      notes:    String(r.notes ?? ''),
+      createdAt: Number(r.createdAt) || Date.now(),
+      updatedAt: Number(r.updatedAt) || Number(r.createdAt) || Date.now(),
+      history: Array.isArray(r.history) ? r.history.filter(h => h && STATUS_IDS.has(h.status)) : [],
+    });
+  });
+  return out;
+}
+function isoOrEmpty(v){
+  const s = String(v ?? '').trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+}
+function safeUrl(v){
+  const s = String(v ?? '').trim();
+  if(!s) return '';
+  try{
+    const u = new URL(s, window.location.href);
+    return (u.protocol === 'http:' || u.protocol === 'https:') ? u.href : '';
+  }catch(e){ return ''; }
+}
+
+/* ================= load ================= */
+async function load(){
+  await probeStorage();
+  const raw = await store.get(KEY);
+
+  if(raw === null || raw === ''){
+    apps = [];
+  }else{
+    let parsed = null;
+    try{ parsed = JSON.parse(raw); }catch(e){ parsed = undefined; }
+    const clean = parsed === undefined ? null : normalise(parsed);
+    if(clean === null){
+      // unreadable — do NOT overwrite. Offer the snapshot.
+      loadFailed = true;
+      apps = [];
+      const bakRaw = await store.get(KEY_BAK);
+      let bak = null;
+      try{ bak = bakRaw ? normalise(JSON.parse(bakRaw)) : null; }catch(e){}
+      const actions = [];
+      if(bak && bak.length){
+        actions.push({label:`Restore ${bak.length} from snapshot`, fn: async ()=>{
+          apps = bak; loadFailed = false; hideBanner(); await persist(); render();
+          toast('Restored from snapshot');
+        }});
+      }
+      actions.push({label:'Start fresh', fn: async ()=>{
+        if(!confirm('This permanently clears the unreadable saved data. Continue?')) return;
+        apps = []; loadFailed = false; hideBanner(); await persist(); render();
+      }});
+      showBanner('Your saved data could not be read. Nothing has been overwritten \u2014 pick an option below.', 'danger', actions);
+    }else{
+      apps = clean;
+    }
+  }
+
+  // guarantee a recovery point exists, even in a read-only session
+  if(storageWorks && !loadFailed && apps.length){
+    const bak = await store.get(KEY_BAK);
+    let stale = true;
+    try{ stale = !bak || !Array.isArray(JSON.parse(bak)); }catch(e){ stale = true; }
+    let meta = {};
+    try{ meta = JSON.parse(await store.get(KEY_META) || '{}'); }catch(e){}
+    const age = Date.now() - (Number(meta.lastSnapshotAt) || 0);
+    if(stale || age > 86400000){
+      await store.set(KEY_BAK, JSON.stringify(apps));
+      meta.lastSnapshotAt = Date.now();
+      await store.set(KEY_META, JSON.stringify(meta));
+    }
+  }
+
+  const isFileUrl = window.location.protocol === 'file:';
+
+  if(!storageWorks){
+    showBanner('This browser is blocking storage, so nothing will be remembered after you close it. Export a Backup before you close, and see the setup notes for a fix.', 'danger', []);
+  }else if(isFileUrl && !store.isArtifact && !(await persistenceProven())){
+    // Chrome keeps file:// storage; Safari discards it on close. The write itself
+    // succeeds either way, so a probe can't tell them apart in a single session.
+    // Warn once, then auto-clear as soon as a value survives a session.
+    showBanner('First run from a local file. Some browsers (Safari especially) discard this data when you close the tab. Add one entry, reopen this file, and check it\u2019s still here \u2014 this notice disappears once storage is confirmed working.', '',
+      [{label:'Got it', fn:hideBanner}]);
+  }else if(!loadFailed){
+    await maybeNagBackup();
+  }
+  render();
+}
+
+// True once a marker written in an EARLIER session is found — proof storage persists.
+async function persistenceProven(){
+  let meta = {};
+  try{ meta = JSON.parse(await store.get(KEY_META) || '{}'); }catch(e){}
+  const seen = Number(meta.firstSeenAt) || 0;
+  if(seen && (Date.now() - seen) > 60000) return true;   // written before this session
+  if(!seen){
+    meta.firstSeenAt = Date.now();
+    await store.set(KEY_META, JSON.stringify(meta));
+  }
+  return false;
+}
+
+async function maybeNagBackup(){
+  if(loadFailed) return;
+  let meta = {};
+  try{ meta = JSON.parse(await store.get(KEY_META) || '{}'); }catch(e){}
+  const last = Number(meta.lastBackupAt) || 0;
+  const days = last ? Math.floor((Date.now() - last) / 86400000) : Infinity;
+  if(apps.length >= 3 && days >= BACKUP_NAG_DAYS){
+    showBanner(last ? `Last backup was ${days} days ago.` : 'You haven\u2019t downloaded a backup yet.', '',
+      [{label:'Download backup', fn:exportJson},{label:'Later', fn:hideBanner}]);
+  }
+}
+async function markBackedUp(){
+  let meta = {};
+  try{ meta = JSON.parse(await store.get(KEY_META) || '{}'); }catch(e){}
+  meta.lastBackupAt = Date.now();
+  meta.schema = SCHEMA;
+  await store.set(KEY_META, JSON.stringify(meta));
+}
+
+/* ================= banner / toast ================= */
+function showBanner(text, kind, actions){
+  const b = $('banner');
+  $('bannerText').textContent = text;
+  b.className = 'banner show' + (kind === 'danger' ? ' danger' : '');
+  const box = $('bannerActions');
+  box.innerHTML = '';
+  (actions || []).forEach(a => {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-small';
+    btn.textContent = a.label;
+    btn.onclick = a.fn;
+    box.appendChild(btn);
+  });
+}
+function hideBanner(){ $('banner').className = 'banner'; }
+
+let toastTimer = null;
+function toast(msg, undoFn){
+  $('toastText').textContent = msg;
+  const u = $('undoBtn');
+  if(undoFn){ u.classList.add('show'); u.onclick = () => { u.classList.remove('show'); $('toast').classList.remove('show'); undoFn(); }; }
+  else { u.classList.remove('show'); u.onclick = null; }
+  $('toast').classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ $('toast').classList.remove('show'); u.classList.remove('show'); }, undoFn ? 7000 : 2400);
+}
+
+/* ================= helpers ================= */
+function uid(){ return 'app_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8); }
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function fmtDate(iso){
+  if(!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});
+}
+function daysSince(ts){ return Math.floor((Date.now() - Number(ts)) / 86400000); }
+function daysUntil(iso){
+  const d = new Date(iso + 'T00:00:00'), t = new Date(todayISO() + 'T00:00:00');
+  return Math.round((d - t) / 86400000);
+}
+function statusOf(id){ return STATUSES.find(s => s.id === id) || STATUSES[1]; }
+
+/* escape for TEXT nodes and for ATTRIBUTE values (quotes included) */
+function esc(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function fingerprint(a){
+  return (a.company||'').trim().toLowerCase() + '|' + (a.role||'').trim().toLowerCase() + '|' + (a.dateApplied||'');
+}
+
+function nextActionState(a){
+  if(!a.nextDate) return null;
+  if(CLOSED.has(a.status)) return null;           // closed apps never nag
+  const du = daysUntil(a.nextDate);
+  if(isNaN(du)) return null;
+  const what = a.nextWhat || 'next step';
+  if(du < 0)   return {cls:'pill-due', text:`Overdue: ${what}`};
+  if(du === 0) return {cls:'pill-due', text:`Today: ${what}`};
+  if(du <= 3)  return {cls:'pill-upcoming', text:`In ${du}d: ${what}`};
+  return {cls:'pill-upcoming', text:`${fmtDate(a.nextDate)}: ${what}`, quiet:true};
+}
+
+/* ================= render ================= */
+function render(){
+  renderStats();
+  renderPipeline();
+  renderToday();
+  renderList();
+}
+
+function renderStats(){
+  const el = $('stats');
+  if(apps.length === 0){ el.innerHTML = ''; return; }
+  const total = apps.length;
+  const active = apps.filter(a => ACTIVE.has(a.status)).length;
+  const applied = apps.filter(a => a.status !== 'saved').length;
+  const responded = apps.filter(a => ['screening','interview','offer','rejected'].includes(a.status)).length;
+  const interviewed = apps.filter(a => ['interview','offer'].includes(a.status)).length;
+  const week = apps.filter(a => a.dateApplied && daysUntil(a.dateApplied) >= -7 && a.status !== 'saved').length;
+  const pct = (n, d) => d ? Math.round(n / d * 100) + '%' : '—';
+  el.innerHTML =
+    `<span><b>${total}</b> tracked</span>` +
+    `<span><b>${active}</b> in play</span>` +
+    `<span><b>${week}</b> applied this week</span>` +
+    `<span>Response rate <b>${pct(responded, applied)}</b></span>` +
+    `<span>Interview rate <b>${pct(interviewed, applied)}</b></span>`;
+}
+
+function renderPipeline(){
+  const counts = {all: apps.length};
+  STATUSES.forEach(s => counts[s.id] = apps.filter(a => a.status === s.id).length);
+  const el = $('pipeline');
+  el.innerHTML = '';
+  const mk = (id, label, count, color) => {
+    const b = document.createElement('button');
+    b.className = 'stage' + (filter === id ? ' active' : '');
+    b.setAttribute('role','tab');
+    b.setAttribute('aria-selected', filter === id);
+    b.innerHTML = `<span class="count" style="color:${color}">${count}</span><span class="label" style="color:${color}">${esc(label)}</span>`;
+    b.onclick = () => { filter = id; shown = PAGE; render(); };
+    el.appendChild(b);
+  };
+  mk('all','All',counts.all,'var(--ink)');
+  mk('active','In play', apps.filter(a => ACTIVE.has(a.status)).length, 'var(--screen)');
+  STATUSES.forEach(s => mk(s.id, s.label, counts[s.id], s.color));
+}
+
+function renderToday(){
+  const items = [];
+  apps.forEach(a => {
+    if(CLOSED.has(a.status)) return;
+    const du = a.nextDate ? daysUntil(a.nextDate) : null;
+    if(du !== null && !isNaN(du) && du <= 0){
+      items.push({a, due:true, text:`${a.company} — ${a.nextWhat || 'next step'} ${du < 0 ? `(overdue ${-du}d)` : '(today)'}`});
+    }else if(ACTIVE.has(a.status) && a.updatedAt && daysSince(a.updatedAt) >= STALE_DAYS){
+      items.push({a, due:false, text:`${a.company} — quiet for ${daysSince(a.updatedAt)} days, worth a follow-up?`});
+    }
+  });
+  const panel = $('todayPanel');
+  if(!items.length){ panel.classList.remove('show'); return; }
+  panel.classList.add('show');
+  items.sort((x,y) => (y.due?1:0) - (x.due?1:0));
+  const ul = $('todayList');
+  ul.innerHTML = '';
+  items.slice(0,8).forEach(it => {
+    const li = document.createElement('li');
+    li.innerHTML = (it.due ? '<span class="due-tag">●</span> ' : '○ ') + esc(it.text);
+    li.onclick = () => {
+      highlightId = it.a.id; filter = 'all'; $('search').value = ''; render();
+      setTimeout(() => { const el = document.querySelector('.card.highlight'); if(el) el.scrollIntoView({behavior:'smooth', block:'center'}); }, 40);
+    };
+    ul.appendChild(li);
+  });
+}
+
+function renderList(){
+  const c = $('content');
+  const q = $('search').value.trim().toLowerCase();
+  let rows = apps.filter(a => filter === 'all' ? true : filter === 'active' ? ACTIVE.has(a.status) : a.status === filter);
+  if(q) rows = rows.filter(a =>
+    [a.company, a.role, a.location, a.notes, a.nextWhat, a.contact, a.source].join(' ').toLowerCase().includes(q));
+
+  const sort = $('sort').value;
+  rows = rows.slice().sort((a,b) => {
+    if(sort === 'company')      return String(a.company).localeCompare(String(b.company));
+    if(sort === 'applied-asc')  return String(a.dateApplied||'9999').localeCompare(String(b.dateApplied||'9999'));
+    if(sort === 'applied-desc') return String(b.dateApplied||'').localeCompare(String(a.dateApplied||''));
+    if(sort === 'next-action')  return String(a.nextDate||'9999').localeCompare(String(b.nextDate||'9999'));
+    return (Number(b.updatedAt)||0) - (Number(a.updatedAt)||0);
+  });
+
+  if(apps.length === 0){
+    c.innerHTML = `<div class="empty"><strong>No applications yet.</strong><br>Press <strong>N</strong> or tap “+ Add application” to log your first one.</div>`;
+    return;
+  }
+  if(rows.length === 0){
+    c.innerHTML = `<div class="empty">Nothing matches this filter or search.</div>`;
+    return;
+  }
+
+  const totalRows = rows.length;
+  const visible = rows.slice(0, shown);
+
+  const list = document.createElement('div');
+  list.className = 'list';
+
+  visible.forEach(a => {
+    const st = statusOf(a.status);
+    const stale = ACTIVE.has(a.status) && a.updatedAt && daysSince(a.updatedAt) >= STALE_DAYS;
+    const na = nextActionState(a);
+    const card = document.createElement('div');
+    card.className = 'card' + (a.id === highlightId ? ' highlight' : '');
+
+    const linkHtml = a.link
+      ? ` · <a href="${esc(a.link)}" target="_blank" rel="noopener noreferrer">posting ↗</a>` : '';
+
+    card.innerHTML = `
+      <div class="card-top">
+        <div>
+          <h3>${esc(a.role)}</h3>
+          <div class="company">${esc(a.company)}${linkHtml}</div>
+        </div>
+        <div class="card-actions">
+          ${na && !na.quiet ? `<span class="pill ${na.cls}">${esc(na.text)}</span>` : ''}
+          ${!na && stale ? `<span class="pill pill-stale" title="No update in ${daysSince(a.updatedAt)} days">Follow up?</span>` : ''}
+          <select class="status-select" aria-label="Status for ${esc(a.company)}" style="color:${st.color};background-color:${st.bg}">
+            ${STATUSES.map(s => `<option value="${esc(s.id)}"${s.id === a.status ? ' selected' : ''}>${esc(s.label)}</option>`).join('')}
+          </select>
+          <button class="icon-btn" data-act="edit">Edit</button>
+          <button class="icon-btn" data-act="del">Delete</button>
+        </div>
+      </div>
+      <div class="meta">
+        <span>Applied <strong>${esc(fmtDate(a.dateApplied))}</strong></span>
+        ${a.location ? `<span>📍 ${esc(a.location)}</span>` : ''}
+        ${a.salary ? `<span>💰 ${esc(a.salary)}</span>` : ''}
+        ${a.source ? `<span>via ${esc(a.source)}</span>` : ''}
+        ${a.contact ? `<span>👤 ${esc(a.contact)}</span>` : ''}
+        ${na && na.quiet ? `<span>🗓 <strong>${esc(na.text)}</strong></span>` : ''}
+        <span>Updated <strong>${a.updatedAt ? (daysSince(a.updatedAt) === 0 ? 'today' : daysSince(a.updatedAt) + 'd ago') : '—'}</strong></span>
+      </div>
+      ${a.notes ? `<div class="notes">${esc(a.notes)}</div>` : ''}
+    `;
+
+    card.querySelector('.status-select').addEventListener('change', e => {
+      const from = a.status;
+      a.status = e.target.value;
+      a.updatedAt = Date.now();
+      (a.history ||= []).push({status: a.status, at: todayISO()});
+      persist(); render();
+      toast(`${a.company} → ${statusOf(a.status).label}`, () => {
+        a.status = from; a.updatedAt = Date.now(); a.history.pop();
+        persist(); render();
+      });
+    });
+
+    card.querySelector('[data-act="edit"]').onclick = () => openForm(a.id);
+
+    card.querySelector('[data-act="del"]').onclick = () => {
+      const idx = apps.findIndex(x => x.id === a.id);
+      lastDeleted = {row: a, idx};
+      apps.splice(idx, 1);
+      persist(); render();
+      toast(`Deleted ${a.company}`, () => {
+        apps.splice(lastDeleted.idx, 0, lastDeleted.row);
+        lastDeleted = null; persist(); render();
+      });
+    };
+
+    list.appendChild(card);
+  });
+
+  c.innerHTML = '';
+  c.appendChild(list);
+
+  if(totalRows > shown){
+    const more = document.createElement('button');
+    more.className = 'btn btn-small';
+    more.style.cssText = 'display:block;margin:14px auto 0;';
+    more.textContent = `Show ${Math.min(PAGE, totalRows - shown)} more (${totalRows - shown} hidden)`;
+    more.onclick = () => { shown += PAGE; renderList(); };
+    c.appendChild(more);
+  }
+  highlightId = null;
+}
+
+/* ================= form ================= */
+function openForm(id){
+  editingId = id || null;
+  const a = id ? apps.find(x => x.id === id) : null;
+  $('formTitle').textContent = a ? 'Edit application' : 'Add application';
+  $('saveBtn').textContent = a ? 'Save changes' : 'Save application';
+  $('fCompany').value  = a ? a.company : '';
+  $('fRole').value     = a ? a.role : '';
+  $('fDate').value     = a ? a.dateApplied : todayISO();
+  $('fStatus').value   = a ? a.status : 'applied';
+  $('fLocation').value = a ? a.location : '';
+  $('fSalary').value   = a ? a.salary : '';
+  $('fNextDate').value = a ? a.nextDate : '';
+  $('fNextWhat').value = a ? a.nextWhat : '';
+  $('fContact').value  = a ? a.contact : '';
+  $('fSource').value   = a ? a.source : '';
+  $('fLink').value     = a ? a.link : '';
+  $('fNotes').value    = a ? a.notes : '';
+  checkDuplicate();
+  $('formPanel').classList.add('open');
+  $('fCompany').focus();
+  $('formPanel').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function closeForm(){ $('formPanel').classList.remove('open'); editingId = null; }
+
+function checkDuplicate(){
+  const co = $('fCompany').value.trim().toLowerCase();
+  const ro = $('fRole').value.trim().toLowerCase();
+  const el = $('dupWarn');
+  if(!co){ el.classList.remove('show'); return; }
+  const exact = apps.some(a => a.id !== editingId && a.company.trim().toLowerCase() === co && a.role.trim().toLowerCase() === ro && ro);
+  const sameCo = apps.filter(a => a.id !== editingId && a.company.trim().toLowerCase() === co).length;
+  if(exact){ el.textContent = 'You already logged this exact role at this company.'; el.classList.add('show'); }
+  else if(sameCo){ el.textContent = `You have ${sameCo} other application${sameCo>1?'s':''} at this company.`; el.classList.add('show'); }
+  else el.classList.remove('show');
+}
+$('fCompany').addEventListener('input', checkDuplicate);
+$('fRole').addEventListener('input', checkDuplicate);
+
+function saveForm(){
+  const company = $('fCompany').value.trim();
+  const role = $('fRole').value.trim();
+  if(!company || !role){ toast('Company and role are both required'); $('fCompany').focus(); return; }
+  const status = STATUS_IDS.has($('fStatus').value) ? $('fStatus').value : 'applied';
+  const data = {
+    company, role, status,
+    dateApplied: isoOrEmpty($('fDate').value) || todayISO(),
+    location: $('fLocation').value.trim(),
+    salary:   $('fSalary').value.trim(),
+    nextDate: isoOrEmpty($('fNextDate').value),
+    nextWhat: $('fNextWhat').value.trim(),
+    contact:  $('fContact').value.trim(),
+    source:   $('fSource').value.trim(),
+    link:     safeUrl($('fLink').value),
+    notes:    $('fNotes').value.trim(),
+    updatedAt: Date.now(),
+  };
+  if($('fLink').value.trim() && !data.link) toast('That link was ignored — only http/https links are saved');
+
+  if(editingId){
+    const i = apps.findIndex(x => x.id === editingId);
+    if(i > -1){
+      if(apps[i].status !== status) (apps[i].history ||= []).push({status, at: todayISO()});
+      apps[i] = Object.assign({}, apps[i], data);
+    }
+    toast('Updated');
+  }else{
+    apps.unshift(Object.assign({id: uid(), createdAt: Date.now(), history: [{status, at: data.dateApplied}]}, data));
+    toast('Added — good luck 🍀');
+  }
+  persist(); closeForm(); render();
+}
+
+/* ================= exports ================= */
+const COLS = [
+  ['Company','company'], ['Role','role'], ['Status','statusLabel'], ['Date applied','dateApplied'],
+  ['Location','location'], ['Salary','salary'], ['Source','source'], ['Contact','contact'],
+  ['Next action date','nextDate'], ['Next action','nextWhat'], ['Days since update','daysIdle'],
+  ['Link','link'], ['Notes','notes'],
+];
+function exportRows(){
+  return apps.map(a => ({
+    company: a.company, role: a.role, statusLabel: statusOf(a.status).label,
+    dateApplied: a.dateApplied, location: a.location, salary: a.salary,
+    source: a.source, contact: a.contact, nextDate: a.nextDate, nextWhat: a.nextWhat,
+    daysIdle: a.updatedAt ? daysSince(a.updatedAt) : '', link: a.link, notes: a.notes,
+  }));
+}
+function download(filename, data, type){
+  const blob = data instanceof Uint8Array ? new Blob([data], {type}) : new Blob([data], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* CSV: BOM so Excel reads UTF-8, and formula-injection neutralised */
+function csvCell(v){
+  let s = String(v ?? '');
+  if(/^[=+\-@\t\r]/.test(s)) s = "'" + s;      // stop Excel treating it as a formula
+  return '"' + s.replace(/"/g,'""') + '"';
+}
+function exportCsv(){
+  const rows = exportRows();
+  const lines = [COLS.map(c => csvCell(c[0])).join(',')];
+  rows.forEach(r => lines.push(COLS.map(c => csvCell(r[c[1]])).join(',')));
+  download(`job-applications-${todayISO()}.csv`, '\uFEFF' + lines.join('\r\n'), 'text/csv;charset=utf-8');
+  toast('CSV exported');
+}
+
+/* ---- real .xlsx (zip of XML), no libraries, works offline ---- */
+function crc32(buf){
+  let table = crc32.table;
+  if(!table){
+    table = crc32.table = new Int32Array(256);
+    for(let n = 0; n < 256; n++){
+      let c = n;
+      for(let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      table[n] = c;
+    }
+  }
+  let crc = -1;
+  for(let i = 0; i < buf.length; i++) crc = (crc >>> 8) ^ table[(crc ^ buf[i]) & 0xFF];
+  return (crc ^ -1) >>> 0;
+}
+function zipFiles(files){
+  const enc = new TextEncoder();
+  const u16 = n => [n & 255, (n >> 8) & 255];
+  const u32 = n => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
+  const DOSDATE = ((2024 - 1980) << 9) | (1 << 5) | 1;
+  const locals = [], centrals = [];
+  let offset = 0;
+  files.forEach(f => {
+    const name = enc.encode(f.name);
+    const data = typeof f.data === 'string' ? enc.encode(f.data) : f.data;
+    const crc = crc32(data);
+    const head = [].concat([0x50,0x4b,0x03,0x04], u16(20), u16(0), u16(0), u16(0), u16(DOSDATE),
+      u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0));
+    const local = new Uint8Array(head.length + name.length + data.length);
+    local.set(head, 0); local.set(name, head.length); local.set(data, head.length + name.length);
+    locals.push(local);
+    const chead = [].concat([0x50,0x4b,0x01,0x02], u16(20), u16(20), u16(0), u16(0), u16(0), u16(DOSDATE),
+      u32(crc), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset));
+    const central = new Uint8Array(chead.length + name.length);
+    central.set(chead, 0); central.set(name, chead.length);
+    centrals.push(central);
+    offset += local.length;
+  });
+  const cenSize = centrals.reduce((a,b) => a + b.length, 0);
+  const end = new Uint8Array([].concat([0x50,0x4b,0x05,0x06], u16(0), u16(0),
+    u16(files.length), u16(files.length), u32(cenSize), u32(offset), u16(0)));
+  const total = locals.reduce((a,b) => a + b.length, 0) + cenSize + end.length;
+  const out = new Uint8Array(total);
+  let p = 0;
+  locals.forEach(b => { out.set(b, p); p += b.length; });
+  centrals.forEach(b => { out.set(b, p); p += b.length; });
+  out.set(end, p);
+  return out;
+}
+function xmlEsc(s){
+  return String(s ?? '')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+const DATE_COLS = new Set(['dateApplied','nextDate']);
+function excelSerial(iso){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso||''))) return null;
+  const [y,m,d] = iso.split('-').map(Number);
+  const days = Math.round(Date.UTC(y, m-1, d) / 86400000) + 25569;
+  return (isFinite(days) && days > 0) ? days : null;
+}
+function colName(i){ let s = ''; i++; while(i > 0){ const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+
+function exportXlsx(){
+  const rows = exportRows();
+  const sheetRows = [];
+  sheetRows.push('<row r="1">' + COLS.map((c,i) =>
+    `<c r="${colName(i)}1" t="inlineStr" s="1"><is><t>${xmlEsc(c[0])}</t></is></c>`).join('') + '</row>');
+  rows.forEach((r, ri) => {
+    const n = ri + 2;
+    const cells = COLS.map((c, i) => {
+      const v = r[c[1]];
+      const ref = colName(i) + n;
+      if(c[1] === 'daysIdle' && v !== '' && v !== null && !isNaN(v))
+        return `<c r="${ref}"><v>${Number(v)}</v></c>`;
+      if(DATE_COLS.has(c[1])){
+        const serial = excelSerial(v);
+        if(serial !== null) return `<c r="${ref}" s="2"><v>${serial}</v></c>`;
+        return `<c r="${ref}" s="2"/>`;
+      }
+      return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
+    }).join('');
+    sheetRows.push(`<row r="${n}">${cells}</row>`);
+  });
+  const widths = [22,26,13,14,18,14,16,22,16,26,17,34,46];
+  const cols = '<cols>' + widths.map((w,i) => `<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('') + '</cols>';
+  const lastCol = colName(COLS.length - 1), lastRow = rows.length + 1;
+
+  const sheet = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><outlinePr/></sheetPr><dimension ref="A1:${lastCol}${lastRow}"/><sheetViews><sheetView workbookViewId="0" tabSelected="1"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>${cols}<sheetData>${sheetRows.join('')}</sheetData><autoFilter ref="A1:${lastCol}${lastRow}"/></worksheet>`;
+
+  const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="yyyy\\-mm\\-dd"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF16233B"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"><alignment vertical="center"/></xf><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles><dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium2"/></styleSheet>`;
+
+  const files = [
+    {name:'[Content_Types].xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`},
+    {name:'_rels/.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+    {name:'xl/workbook.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Applications" sheetId="1" r:id="rId1"/></sheets></workbook>`},
+    {name:'xl/_rels/workbook.xml.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+    {name:'xl/styles.xml', data:styles},
+    {name:'xl/worksheets/sheet1.xml', data:sheet},
+  ];
+  download(`job-applications-${todayISO()}.xlsx`, zipFiles(files),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  toast('Excel file exported');
+}
+
+async function exportJson(){
+  const payload = {schema: SCHEMA, exportedAt: new Date().toISOString(), applications: apps};
+  download(`job-tracker-backup-${todayISO()}.json`, JSON.stringify(payload, null, 2), 'application/json');
+  await markBackedUp();
+  hideBanner();
+  toast('Backup downloaded');
+}
+
+/* ================= import ================= */
+function handleImport(text){
+  let parsed;
+  try{ parsed = JSON.parse(text); }catch(e){ toast('That file isn\u2019t a valid backup'); return; }
+  const arr = Array.isArray(parsed) ? parsed
+            : (parsed && Array.isArray(parsed.applications)) ? parsed.applications : null;
+  const incoming = normalise(arr);
+  if(!incoming || !incoming.length){ toast('No applications found in that file'); return; }
+
+  const existingIds = new Set(apps.map(a => a.id));
+  const existingFp  = new Set(apps.map(fingerprint));
+  const fresh = incoming.filter(r => !existingIds.has(r.id) && !existingFp.has(fingerprint(r)));
+  const dupes = incoming.length - fresh.length;
+
+  if(!apps.length){
+    apps = incoming;
+  }else{
+    const msg = `This file has ${incoming.length} application${incoming.length>1?'s':''}` +
+      (dupes ? ` (${dupes} already here)` : '') +
+      `.\n\nOK = add the ${fresh.length} new one${fresh.length===1?'':'s'} to what you have.\n` +
+      `Cancel = replace everything with the file's ${incoming.length}.`;
+    if(confirm(msg)) apps = apps.concat(fresh);
+    else apps = incoming;
+  }
+  loadFailed = false;
+  persist(); render();
+  toast(`Restored — ${apps.length} application${apps.length===1?'':'s'} loaded`);
+}
+
+/* ================= wiring ================= */
+$('fStatus').innerHTML = STATUSES.map(s => `<option value="${esc(s.id)}">${esc(s.label)}</option>`).join('');
+$('addBtn').onclick = () => openForm(null);
+$('cancelBtn').onclick = closeForm;
+$('saveBtn').onclick = saveForm;
+$('exportCsvBtn').onclick = exportCsv;
+$('exportXlsxBtn').onclick = exportXlsx;
+$('exportJsonBtn').onclick = exportJson;
+$('importBtn').onclick = () => $('importFile').click();
+$('importFile').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0];
+  if(!f){ return; }
+  const r = new FileReader();
+  r.onload = () => handleImport(String(r.result));
+  r.onerror = () => toast('Could not read that file');
+  r.readAsText(f);
+  e.target.value = '';
+});
+$('search').addEventListener('input', () => { shown = PAGE; renderList(); });
+$('sort').addEventListener('change', () => { shown = PAGE; renderList(); });
+
+document.addEventListener('keydown', e => {
+  const t = document.activeElement;
+  const typing = t && (['INPUT','TEXTAREA','SELECT'].includes(t.tagName) || t.isContentEditable);
+  if(e.key === 'Escape'){ closeForm(); return; }
+  if(typing) return;
+  if(e.key === 'n' || e.key === 'N'){ e.preventDefault(); openForm(null); }
+  if(e.key === '/'){ e.preventDefault(); $('search').focus(); }
+});
+
+// last-resort guard: a render bug should never leave a blank screen
+window.addEventListener('error', () => {
+  const c = $('content');
+  if(c && !c.children.length){
+    c.innerHTML = '<div class="empty">Something went wrong drawing the list. Your data is safe — use <strong>Backup</strong> and reload.</div>';
+  }
+});
+
+/* ---- service worker: offline support + a controlled update prompt ---- */
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      // A waiting worker means a newer deploy is ready.
+      const offerUpdate = worker => {
+        showBanner('A newer version of the tracker is ready.', '', [
+          {label:'Reload now', fn: () => { worker.postMessage('SKIP_WAITING'); }},
+          {label:'Later', fn: hideBanner},
+        ]);
+      };
+      if(reg.waiting) offerUpdate(reg.waiting);
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if(!nw) return;
+        nw.addEventListener('statechange', () => {
+          // controller present => this is an update, not a first install
+          if(nw.state === 'installed' && navigator.serviceWorker.controller) offerUpdate(nw);
+        });
+      });
+      // check for a new deploy when the window regains focus
+      window.addEventListener('focus', () => { reg.update().catch(()=>{}); });
+    }).catch(()=>{});
+
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if(reloading) return;
+      reloading = true;
+      window.location.reload();
+    });
+  });
+}
+
+load();
+</script>
+</body>
+</html>
